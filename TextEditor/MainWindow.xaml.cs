@@ -1,89 +1,152 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using System.IO; // Make sure to include this for File IO operations
+using Microsoft.Win32;
 
 namespace PlainTextEditor
 {
     public partial class MainWindow : Window
     {
-        // It's a good practice to declare class-level variables at the top
         private string currentFilePath = null;
+        private bool isDocumentModified = false;
+        private string lastAccessedDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
         public MainWindow()
         {
             InitializeComponent();
+            UpdateMenuItems();
+           
         }
-
-        // Your existing MenuItem_Click, if not used, can be removed or left empty if you plan to use it later
 
         private void New_Click(object sender, RoutedEventArgs e)
         {
-            MainTextBox.Clear();
+            if (ConfirmSaveIfModified())
+            {
+                MainTextBox.Clear();
+                currentFilePath = null;
+                isDocumentModified = false;
+                UpdateMenuItems();
+            }
         }
 
         private void Open_Click(object sender, RoutedEventArgs e)
         {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            if (ConfirmSaveIfModified())
             {
-                DefaultExt = ".txt",
-                Filter = "Text documents (.txt)|*.txt"
-            };
+                var openFileDialog = new OpenFileDialog
+                {
+                    DefaultExt = ".txt",
+                    Filter = "Text documents (.txt)|*.txt",
+                    InitialDirectory = lastAccessedDirectory
+                };
 
-            bool? result = openFileDialog.ShowDialog();
-            if (result == true)
-            {
-                string filename = openFileDialog.FileName;
-                MainTextBox.Text = File.ReadAllText(filename);
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    try
+                    {
+                        currentFilePath = openFileDialog.FileName;
+                        MainTextBox.Text = File.ReadAllText(currentFilePath);
+                        isDocumentModified = false;
+                        lastAccessedDirectory = Path.GetDirectoryName(currentFilePath);
+                        UpdateMenuItems();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Failed to open file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
             }
-        } // This closing brace was missing in your code
+        }
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(currentFilePath))
+            try
             {
-                SaveAs_Click(sender, e);
-                return;
+                if (string.IsNullOrEmpty(currentFilePath))
+                {
+                    SaveAs_Click(sender, e);
+                }
+                else
+                {
+                    File.WriteAllText(currentFilePath, MainTextBox.Text);
+                    isDocumentModified = false;
+                    UpdateMenuItems();
+                }
             }
-
-            File.WriteAllText(currentFilePath, MainTextBox.Text);
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void SaveAs_Click(object sender, RoutedEventArgs e)
         {
-            var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            var saveFileDialog = new SaveFileDialog
             {
                 DefaultExt = ".txt",
-                Filter = "Text documents (.txt)|*.txt"
+                Filter = "Text documents (.txt)|*.txt",
+                InitialDirectory = !string.IsNullOrEmpty(currentFilePath) ? Path.GetDirectoryName(currentFilePath) : lastAccessedDirectory
             };
 
-            bool? result = saveFileDialog.ShowDialog();
-            if (result == true)
+            if (saveFileDialog.ShowDialog() == true)
             {
-                currentFilePath = saveFileDialog.FileName;
-                File.WriteAllText(currentFilePath, MainTextBox.Text);
+                try
+                {
+                    currentFilePath = saveFileDialog.FileName;
+                    File.WriteAllText(currentFilePath, MainTextBox.Text);
+                    isDocumentModified = false;
+                    lastAccessedDirectory = Path.GetDirectoryName(currentFilePath);
+                    UpdateMenuItems();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to save as: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
         private void Exit_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown();
+            if (ConfirmSaveIfModified())
+            {
+                Application.Current.Shutdown();
+            }
         }
 
         private void About_Click(object sender, RoutedEventArgs e)
         {
             MessageBox.Show("Simple Text Editor\nVersion 1.0\n2024", "About");
+        }
+
+        private void MainTextBox_TextChanged(object sender, RoutedEventArgs e)
+        {
+            isDocumentModified = true;
+            UpdateMenuItems();
+        }
+
+        private bool ConfirmSaveIfModified()
+        {
+            if (isDocumentModified)
+            {
+                var result = MessageBox.Show("Do you want to save changes to your document?", "Confirm", MessageBoxButton.YesNoCancel);
+                if (result == MessageBoxResult.Cancel)
+                {
+                    return false;
+                }
+                else if (result == MessageBoxResult.Yes)
+                {
+                    Save_Click(this, new RoutedEventArgs());
+                    return !isDocumentModified; // Return false if Save was cancelled
+                }
+            }
+            return true;
+        }
+
+        private void UpdateMenuItems()
+        {
+            // Assuming SaveMenuItem is named and accessible
+            SaveMenuItem.IsEnabled = isDocumentModified || !string.IsNullOrEmpty(currentFilePath);
+            // Other menu items can be similarly managed based on the application's state
         }
     }
 }

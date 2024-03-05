@@ -9,28 +9,24 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- For Menu -->
             <RowDefinition Height="*"/>
-            <!-- For TextBox, takes remaining space -->
         </Grid.RowDefinitions>
-
         <Menu Grid.Row="0">
             <MenuItem Header="_File">
-                <MenuItem Header="_New" Click="New_Click" />
-                <MenuItem Header="_Open..." Click="Open_Click" />
-                <MenuItem Header="_Save" Click="Save_Click" />
-                <MenuItem Header="Save _As..." Click="SaveAs_Click" />
-                <MenuItem Header="_Exit" Click="Exit_Click" />
+                <MenuItem x:Name="NewMenuItem" Header="_New" Click="New_Click" />
+                <MenuItem x:Name="OpenMenuItem" Header="_Open..." Click="Open_Click" />
+                <MenuItem x:Name="SaveMenuItem" Header="_Save" Click="Save_Click" />
+                <MenuItem x:Name="SaveAsMenuItem" Header="Save _As..." Click="SaveAs_Click" />
+                <MenuItem x:Name="ExitMenuItem" Header="_Exit" Click="Exit_Click" />
             </MenuItem>
             <MenuItem Header="_Help">
-                <MenuItem Header="_About" Click="About_Click" />
+                <MenuItem x:Name="AboutMenuItem" Header="_About" Click="About_Click" />
             </MenuItem>
         </Menu>
-
-        <TextBox Name="MainTextBox" AcceptsReturn="True" AcceptsTab="True"
+        <TextBox Name="MainTextBox" Grid.Row="1" AcceptsReturn="True" AcceptsTab="True"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                  TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
-                 Grid.Row="1" 
-                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
+                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                 TextChanged="MainTextBox_TextChanged"/>
     </Grid>
 </Window>
