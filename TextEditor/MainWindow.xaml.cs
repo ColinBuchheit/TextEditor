@@ -1,13 +1,13 @@
 ﻿using System;
-using System.IO;
 using System.Windows;
 using Microsoft.Win32;
+using System.IO;
 
 namespace PlainTextEditor
 {
     public partial class MainWindow : Window
     {
-        private string currentFilePath = null;
+        private TextDocument document = new TextDocument();
         private bool isDocumentModified = false;
         private string lastAccessedDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
@@ -15,15 +15,14 @@ namespace PlainTextEditor
         {
             InitializeComponent();
             UpdateMenuItems();
-           
         }
 
         private void New_Click(object sender, RoutedEventArgs e)
         {
             if (ConfirmSaveIfModified())
             {
+                document = new TextDocument();
                 MainTextBox.Clear();
-                currentFilePath = null;
                 isDocumentModified = false;
                 UpdateMenuItems();
             }
@@ -33,7 +32,7 @@ namespace PlainTextEditor
         {
             if (ConfirmSaveIfModified())
             {
-                var openFileDialog = new OpenFileDialog
+                OpenFileDialog openFileDialog = new OpenFileDialog
                 {
                     DefaultExt = ".txt",
                     Filter = "Text documents (.txt)|*.txt",
@@ -42,36 +41,29 @@ namespace PlainTextEditor
 
                 if (openFileDialog.ShowDialog() == true)
                 {
-                    try
-                    {
-                        currentFilePath = openFileDialog.FileName;
-                        MainTextBox.Text = File.ReadAllText(currentFilePath);
-                        isDocumentModified = false;
-                        lastAccessedDirectory = Path.GetDirectoryName(currentFilePath);
-                        UpdateMenuItems();
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Failed to open file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
+                    document.Open(openFileDialog.FileName);
+                    MainTextBox.Text = document.Content;
+                    isDocumentModified = false;
+                    lastAccessedDirectory = Path.GetDirectoryName(openFileDialog.FileName);
+                    UpdateMenuItems();
                 }
             }
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
+            if (string.IsNullOrEmpty(document.FilePath))
+            {
+                SaveAs_Click(sender, e);
+                return;
+            }
+
             try
             {
-                if (string.IsNullOrEmpty(currentFilePath))
-                {
-                    SaveAs_Click(sender, e);
-                }
-                else
-                {
-                    File.WriteAllText(currentFilePath, MainTextBox.Text);
-                    isDocumentModified = false;
-                    UpdateMenuItems();
-                }
+                document.Content = MainTextBox.Text;
+                document.Save();
+                isDocumentModified = false;
+                UpdateMenuItems();
             }
             catch (Exception ex)
             {
@@ -81,27 +73,20 @@ namespace PlainTextEditor
 
         private void SaveAs_Click(object sender, RoutedEventArgs e)
         {
-            var saveFileDialog = new SaveFileDialog
+            SaveFileDialog saveFileDialog = new SaveFileDialog
             {
                 DefaultExt = ".txt",
                 Filter = "Text documents (.txt)|*.txt",
-                InitialDirectory = !string.IsNullOrEmpty(currentFilePath) ? Path.GetDirectoryName(currentFilePath) : lastAccessedDirectory
+                InitialDirectory = lastAccessedDirectory
             };
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                try
-                {
-                    currentFilePath = saveFileDialog.FileName;
-                    File.WriteAllText(currentFilePath, MainTextBox.Text);
-                    isDocumentModified = false;
-                    lastAccessedDirectory = Path.GetDirectoryName(currentFilePath);
-                    UpdateMenuItems();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to save as: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                document.Content = MainTextBox.Text;
+                document.SaveAs(saveFileDialog.FileName);
+                isDocumentModified = false;
+                lastAccessedDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
+                UpdateMenuItems();
             }
         }
 
@@ -128,7 +113,7 @@ namespace PlainTextEditor
         {
             if (isDocumentModified)
             {
-                var result = MessageBox.Show("Do you want to save changes to your document?", "Confirm", MessageBoxButton.YesNoCancel);
+                var result = MessageBox.Show("Do you want to save changes to your document?", "Confirm", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
                 if (result == MessageBoxResult.Cancel)
                 {
                     return false;
@@ -136,7 +121,7 @@ namespace PlainTextEditor
                 else if (result == MessageBoxResult.Yes)
                 {
                     Save_Click(this, new RoutedEventArgs());
-                    return !isDocumentModified; // Return false if Save was cancelled
+                    return !isDocumentModified;
                 }
             }
             return true;
@@ -144,9 +129,8 @@ namespace PlainTextEditor
 
         private void UpdateMenuItems()
         {
-            // Assuming SaveMenuItem is named and accessible
-            SaveMenuItem.IsEnabled = isDocumentModified || !string.IsNullOrEmpty(currentFilePath);
-            // Other menu items can be similarly managed based on the application's state
+            // Ensure this method correctly references your Save menu item, like `SaveMenuItem.IsEnabled = ...;`
+            SaveMenuItem.IsEnabled = !string.IsNullOrEmpty(document.FilePath);
         }
     }
 }
